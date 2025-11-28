@@ -8,7 +8,7 @@
 get_client_id() {
     local base_url="$1"
     local timestamp=$(date +%s)000
-    local response=$(curl -s -m 5 "${base_url}/cgi-bin/init?_=${timestamp}" 2>/dev/null)
+    local response=$(curl -s "${base_url}/cgi-bin/init?_=${timestamp}" 2>/dev/null)
     
     if [ $? -ne 0 ] || [ -z "$response" ]; then
         echo ""
@@ -24,7 +24,7 @@ get_client_id() {
 # Returns: JSON response with rules list
 get_rules_list() {
     local base_url="$1"
-    local response=$(curl -s -m 5 "${base_url}/cgi-bin/rules/list" 2>/dev/null)
+    local response=$(curl -s "${base_url}/cgi-bin/rules/list" 2>/dev/null)
     
     if [ $? -ne 0 ] || [ -z "$response" ]; then
         echo ""
@@ -75,8 +75,8 @@ toggle_rule() {
     # Build request body (use 'value' in request even though response has 'data')
     local request_data="clientId=${client_id}&name=${rule_name}&value=${encoded_data}&selected=${current_selected}&active=true&key=w-reactkey-${rule_index}&icon=checkbox"
     
-    # Execute API call with timeout
-    local response=$(curl -s -m 10 -X POST "${base_url}/cgi-bin/rules/${action}" \
+    # Execute API call
+    local response=$(curl -s -X POST "${base_url}/cgi-bin/rules/${action}" \
         -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
         -d "${request_data}" 2>/dev/null)
     
@@ -103,8 +103,8 @@ enable_rule() {
     # Build request body
     local data="clientId=${client_id}&name=${rule_name}&value=${encoded_data}&selected=false&active=true&key=w-reactkey-${rule_index}&icon=checkbox"
     
-    # Execute API call with timeout
-    local response=$(curl -s -m 10 -X POST "${base_url}/cgi-bin/rules/select" \
+    # Execute API call
+    local response=$(curl -s -X POST "${base_url}/cgi-bin/rules/select" \
         -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
         -d "${data}" 2>/dev/null)
     
@@ -130,8 +130,8 @@ disable_rule() {
     # Build request body
     local data="clientId=${client_id}&name=${rule_name}&value=${encoded_data}&selected=true&active=true&key=w-reactkey-${rule_index}&icon=checkbox"
     
-    # Execute API call with timeout
-    local response=$(curl -s -m 10 -X POST "${base_url}/cgi-bin/rules/unselect" \
+    # Execute API call
+    local response=$(curl -s -X POST "${base_url}/cgi-bin/rules/unselect" \
         -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
         -d "${data}" 2>/dev/null)
     
@@ -147,7 +147,7 @@ disable_rule() {
 # Returns: 0 if accessible, 1 if not
 check_whistle_connection() {
     local base_url="$1"
-    local response=$(curl -s -m 3 -o /dev/null -w "%{http_code}" "${base_url}/" 2>/dev/null)
+    local response=$(curl -s -o /dev/null -w "%{http_code}" "${base_url}/" 2>/dev/null)
     
     if [ "$response" = "200" ] || [ "$response" = "302" ]; then
         return 0
