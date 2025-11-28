@@ -45,9 +45,11 @@ def api_call(endpoint, method='GET', data=None):
         url = f"{BASE_URL}{endpoint}"
         
         if method == 'POST' and data:
-            data_encoded = urllib.parse.urlencode(data).encode('utf-8')
+            # Use quote instead of quote_plus to preserve spaces as %20, not +
+            # This prevents whistle rules from being corrupted
+            data_encoded = urllib.parse.urlencode(data, quote_via=urllib.parse.quote).encode('utf-8')
             req = urllib.request.Request(url, data=data_encoded, method='POST')
-            req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+            req.add_header('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
         else:
             req = urllib.request.Request(url)
         
