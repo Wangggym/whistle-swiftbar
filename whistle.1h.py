@@ -69,7 +69,9 @@ def get_client_id():
 
 def get_rules_list():
     """Get all rules"""
-    result = api_call("/cgi-bin/rules/list")
+    import time
+    timestamp = int(time.time() * 1000)
+    result = api_call(f"/cgi-bin/rules/list?_={timestamp}")
     return result.get('list', []) if result else []
 
 
