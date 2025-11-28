@@ -35,30 +35,31 @@ get_rules_list() {
 }
 
 # Parse rules from JSON and output formatted data
-# Format: name|selected|value|key
+# Format: name|selected|data|index
 parse_rules() {
     local rules_json="$1"
     
-    # Use grep to extract rule data
-    echo "$rules_json" | grep -o '"name":"[^"]*","selected":[^,]*,"value":"[^"]*","key":"[^"]*"' | while IFS= read -r line; do
-        local name=$(echo "$line" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
-        local selected=$(echo "$line" | grep -o '"selected":[^,]*' | cut -d':' -f2)
-        local value=$(echo "$line" | grep -o '"value":"[^"]*"' | cut -d'"' -f4 | head -1)
-        local key=$(echo "$line" | grep -o '"key":"[^"]*"' | cut -d'"' -f4)
+    # Extract each rule object from the list array
+    echo "$rules_json" | grep -o '{"index":[0-9]*,"name":"[^"]*","data":"[^"]*","selected":[^}]*}' | while IFS= read -r line; do
+        local name=$(echo "$line" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+        local selected=$(echo "$line" | grep -o '"selected":[^,}]*' | cut -d':' -f2)
+        local data=$(echo "$line" | grep -o '"data":"[^"]*"' | head -1 | cut -d'"' -f4)
+        local index=$(echo "$line" | grep -o '"index":[0-9]*' | cut -d':' -f2)
         
-        echo "${name}|${selected}|${value}|${key}"
+        # Use index as key for API calls
+        echo "${name}|${selected}|${data}|${index}"
     done
 }
 
 # Toggle rule (enable/disable)
-# Args: base_url, client_id, rule_name, current_selected, rule_value, rule_key
+# Args: base_url, client_id, rule_name, current_selected, rule_data, rule_index
 toggle_rule() {
     local base_url="$1"
     local client_id="$2"
     local rule_name="$3"
     local current_selected="$4"
-    local rule_value="$5"
-    local rule_key="$6"
+    local rule_data="$5"
+    local rule_index="$6"
     
     # Determine action based on current state
     local action
@@ -68,16 +69,16 @@ toggle_rule() {
         action="select"
     fi
     
-    # URL encode the rule value
-    local encoded_value=$(echo -n "$rule_value" | sed 's/%/%25/g' | sed 's/ /%20/g' | sed 's/!/%21/g' | sed 's/"/%22/g' | sed 's/#/%23/g' | sed 's/\$/%24/g' | sed 's/&/%26/g' | sed "s/'/%27/g" | sed 's/(/%28/g' | sed 's/)/%29/g' | sed 's/\*/%2A/g' | sed 's/+/%2B/g' | sed 's/,/%2C/g' | sed 's/\//%2F/g' | sed 's/:/%3A/g' | sed 's/;/%3B/g' | sed 's/=/%3D/g' | sed 's/?/%3F/g' | sed 's/@/%40/g' | sed 's/\[/%5B/g' | sed 's/\\/%5C/g' | sed 's/\]/%5D/g' | sed 's/\^/%5E/g')
+    # URL encode the rule data
+    local encoded_data=$(echo -n "$rule_data" | jq -sRr @uri 2>/dev/null || echo -n "$rule_data" | sed 's/%/%25/g' | sed 's/ /%20/g' | sed 's/!/%21/g' | sed 's/"/%22/g' | sed 's/#/%23/g' | sed 's/\$/%24/g' | sed 's/&/%26/g' | sed "s/'/%27/g" | sed 's/(/%28/g' | sed 's/)/%29/g' | sed 's/\*/%2A/g' | sed 's/+/%2B/g' | sed 's/,/%2C/g' | sed 's/\//%2F/g' | sed 's/:/%3A/g' | sed 's/;/%3B/g' | sed 's/=/%3D/g' | sed 's/?/%3F/g' | sed 's/@/%40/g' | sed 's/\[/%5B/g' | sed 's/\\/%5C/g' | sed 's/\]/%5D/g' | sed 's/\^/%5E/g')
     
-    # Build request body
-    local data="clientId=${client_id}&name=${rule_name}&value=${encoded_value}&selected=${current_selected}&active=true&key=${rule_key}&icon=checkbox"
+    # Build request body (use 'value' in request even though response has 'data')
+    local request_data="clientId=${client_id}&name=${rule_name}&value=${encoded_data}&selected=${current_selected}&active=true&key=w-reactkey-${rule_index}&icon=checkbox"
     
     # Execute API call
     local response=$(curl -s -X POST "${base_url}/cgi-bin/rules/${action}" \
         -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
-        -d "${data}" 2>/dev/null)
+        -d "${request_data}" 2>/dev/null)
     
     # Check if response contains success indicator
     if echo "$response" | grep -q '"ec":0'; then
@@ -88,19 +89,19 @@ toggle_rule() {
 }
 
 # Enable specific rule
-# Args: base_url, client_id, rule_name, rule_value, rule_key
+# Args: base_url, client_id, rule_name, rule_data, rule_index
 enable_rule() {
     local base_url="$1"
     local client_id="$2"
     local rule_name="$3"
-    local rule_value="$4"
-    local rule_key="$5"
+    local rule_data="$4"
+    local rule_index="$5"
     
-    # URL encode the rule value
-    local encoded_value=$(echo -n "$rule_value" | sed 's/%/%25/g' | sed 's/ /%20/g')
+    # URL encode the rule data
+    local encoded_data=$(echo -n "$rule_data" | jq -sRr @uri 2>/dev/null || echo -n "$rule_data")
     
     # Build request body
-    local data="clientId=${client_id}&name=${rule_name}&value=${encoded_value}&selected=false&active=true&key=${rule_key}&icon=checkbox"
+    local data="clientId=${client_id}&name=${rule_name}&value=${encoded_data}&selected=false&active=true&key=w-reactkey-${rule_index}&icon=checkbox"
     
     # Execute API call
     local response=$(curl -s -X POST "${base_url}/cgi-bin/rules/select" \
@@ -115,19 +116,19 @@ enable_rule() {
 }
 
 # Disable specific rule
-# Args: base_url, client_id, rule_name, rule_value, rule_key
+# Args: base_url, client_id, rule_name, rule_data, rule_index
 disable_rule() {
     local base_url="$1"
     local client_id="$2"
     local rule_name="$3"
-    local rule_value="$4"
-    local rule_key="$5"
+    local rule_data="$4"
+    local rule_index="$5"
     
-    # URL encode the rule value
-    local encoded_value=$(echo -n "$rule_value" | sed 's/%/%25/g' | sed 's/ /%20/g')
+    # URL encode the rule data
+    local encoded_data=$(echo -n "$rule_data" | jq -sRr @uri 2>/dev/null || echo -n "$rule_data")
     
     # Build request body
-    local data="clientId=${client_id}&name=${rule_name}&value=${encoded_value}&selected=true&active=true&key=${rule_key}&icon=checkbox"
+    local data="clientId=${client_id}&name=${rule_name}&value=${encoded_data}&selected=true&active=true&key=w-reactkey-${rule_index}&icon=checkbox"
     
     # Execute API call
     local response=$(curl -s -X POST "${base_url}/cgi-bin/rules/unselect" \

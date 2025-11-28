@@ -59,12 +59,12 @@ if [ "$1" = "toggle" ]; then
     
     # Parse and find the rule
     FOUND=false
-    while IFS='|' read -r name selected value key; do
+    while IFS='|' read -r name selected data index; do
         if [ "$name" = "$RULE_NAME" ]; then
             FOUND=true
             
             # Toggle the rule
-            if toggle_rule "$BASE_URL" "$CLIENT_ID" "$name" "$selected" "$value" "$key"; then
+            if toggle_rule "$BASE_URL" "$CLIENT_ID" "$name" "$selected" "$data" "$index"; then
                 if [ "$SHOW_NOTIFICATIONS" = "true" ]; then
                     if [ "$selected" = "true" ]; then
                         show_rule_toggle_notification "$name" "false"
@@ -127,7 +127,7 @@ fi
 RULE_COUNT=0
 ENABLED_COUNT=0
 
-while IFS='|' read -r name selected value key; do
+while IFS='|' read -r name selected data index; do
     ((RULE_COUNT++))
     
     # Check max display limit
@@ -144,11 +144,11 @@ while IFS='|' read -r name selected value key; do
         echo "○ $name | bash='$0' param1=toggle param2='$name' terminal=false refresh=true"
     fi
     
-    # Optionally show rule value as submenu
-    if [ "$SHOW_RULE_VALUES" = "true" ] && [ -n "$value" ]; then
-        # Decode and display first 100 chars of rule value
-        DISPLAY_VALUE=$(echo "$value" | cut -c1-100)
-        echo "--$DISPLAY_VALUE | size=10 color=#666666"
+    # Optionally show rule data as submenu
+    if [ "$SHOW_RULE_VALUES" = "true" ] && [ -n "$data" ]; then
+        # Decode and display first 100 chars of rule data
+        DISPLAY_DATA=$(echo "$data" | cut -c1-100)
+        echo "--$DISPLAY_DATA | size=10 color=#666666"
     fi
 done < <(parse_rules "$RULES_DATA")
 
